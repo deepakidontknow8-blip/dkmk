@@ -116,8 +116,37 @@ let currThreadId=sG("ai_curr_thread","");
 let aud=null, eMod={si:-1};
 function tst(m){let t=document.getElementById("toast");t.innerText=m;t.style.display="block";setTimeout(()=>t.style.display="none",2200)}
 function sv(){sS("ai_cfg",JSON.stringify(cfg));sS("ai_brain",JSON.stringify(brain));sS("ai_threads",JSON.stringify(threads));sS("ai_curr_thread",currThreadId)}
-function spk(t){stp();try{let a=new Audio("https://translate.googleapis.com/translate_tts?ie=UTF-8&q="+encodeURIComponent(t.slice(0,180))+"&tl=hi&client=tw-ob");aud=a;a.play().catch(e=>{})}catch(e){}}
-function stp(){if(aud){try{aud.pause();aud.currentTime=0}catch(e){}}}
+function spk(t) {
+  if (!("speechSynthesis" in window)) {
+    alert("आपका ब्राउज़र आवाज़ चलाने की सुविधा सपोर्ट नहीं करता।");
+    return;
+  }
+
+  window.speechSynthesis.cancel();
+
+  const textToRead = String(t || "").trim();
+  if (!textToRead) {
+    alert("सुनाने के लिए कोई टेक्स्ट नहीं मिला।");
+    return;
+  }
+
+  const speech = new SpeechSynthesisUtterance(textToRead);
+  speech.lang = "hi-IN";
+  speech.rate = 1;
+  speech.volume = 1;
+
+  speech.onerror = function (event) {
+    alert("आवाज़ में समस्या: " + event.error);
+  };
+
+  window.speechSynthesis.speak(speech);
+}
+
+function stp() {
+  if ("speechSynthesis" in window) {
+    window.speechSynthesis.cancel();
+  }
+}
 function toggleSidebar(){document.getElementById("sidebar").classList.toggle("open");renderThreads()}
 function newChat(){let id="th_"+Date.now();threads.unshift({id:id,title:"New Chat",pinned:false,msgs:[]});currThreadId=id;sv();renderThreads();loadCurrChat();toggleSidebar()}
 function renderThreads(){
