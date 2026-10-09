@@ -1,1 +1,14 @@
-[ { "relation": [ "delegate_permission/common.handle_all_urls" ], "target": { "namespace": "android_app", "package_name": "io.github.deepakidontknow8_blip.twa", "sha256_cert_fingerprints": [ "72:5F:EB:A1:7A:D8:BE:25:01:78:37:E2:C6:4E:73:88:63:E0:B3:06:A1:0D:47:63:8C:EA:CC:39:BF:61:F6:FA" ] } } ]
+[
+  {
+    "relation": [
+      "delegate_permission/common.handle_all_urls"
+    ],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "io.github.deepakidontknow8_blip.twa",
+      "sha256_cert_fingerprints": [
+        "A2:FE:55:7E:20:1B:3C:BE:07:8D:09:B9:43:62:B1:74:60:31:AC:2B:AE:EE:18:C0:34:65:EA:07:59:44:C8:00"
+      ]
+    }
+  }
+]
