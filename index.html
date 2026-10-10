@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Deepak.mk61</title>
+<link rel="manifest" href="./manifest.json">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
+<style>
+*{box-sizing:border-box;font-family:sans-serif} body{margin:0;background:#131314;color:#E3E3E3;display:flex;flex-direction:column;height:100vh;overflow:hidden}
+.hdr{background:#1E1F22;padding:12px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #282A2E}
+.btn{background:#282A2E;color:#A8C7FA;border:none;padding:8px 12px;border-radius:10px;font-weight:bold;font-size:13px;cursor:pointer}
+.bg{background:#81C995;color:#000} .br{background:#B71C1C;color:#fff} .by{background:#FFD740;color:#000}
+#mainLayout{display:flex;flex:1;overflow:hidden;position:relative}
+#sidebar{width:260px;background:#1E1F22;border-right:1px solid #282A2E;display:flex;flex-direction:column;transition:0.3s;position:absolute;height:100%;z-index:50;left:-260px}
+#sidebar.open{left:0}
+.shead{padding:12px;border-bottom:1px solid #282A2E;display:flex;justify-content:space-between;align-items:center}
+.sbody{flex:1;overflow-y:auto;padding:8px}
+.chat-item{padding:10px;border-radius:8px;margin-bottom:6px;cursor:pointer;font-size:13px;background:#282A2E;color:#E3E3E3;display:flex;justify-content:space-between;align-items:center}
+.chat-item.active{background:#3c4043;color:#fff;border-left:4px solid #A8C7FA}
+#chatArea{flex:1;display:flex;flex-direction:column;height:100%;overflow:hidden}
+#chat{flex:1;padding:14px;overflow-y:auto;display:flex;flex-direction:column;gap:12px}
+.card{padding:12px;border-radius:14px;max-width:90%;line-height:1.45;font-size:15px;word-wrap:break-word}
+.uc{background:#1E1F22;color:#fff;align-self:flex-end;border:1px solid #333}
+.bc{background:#131314;color:#E3E3E3;align-self:flex-start;border:1px solid #282A2E;width:95%}
+.ab{display:flex;gap:8px;margin-top:8px;padding-top:6px;border-top:1px solid #1E1F22}
+.cimg{max-width:100%;max-height:240px;border-radius:10px;margin:6px 0;display:block}
+.btm{display:flex;padding:10px;background:#1E1F22;gap:8px;align-items:center}
+input,textarea{background:#282A2E;color:#fff;border:1px solid #3C4043;padding:11px;border-radius:12px;font-size:14px;width:100%;outline:none;margin-bottom:6px}
+.mdl{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:#131314;z-index:100;flex-direction:column}
+.mdl.open{display:flex} .mbody{flex:1;padding:14px;overflow-y:auto}
+.scard{background:#1E1F22;padding:12px;border-radius:12px;margin-bottom:10px;border:1px solid #282A2E}
+.ptabs{display:flex;gap:6px;overflow-x:auto;padding-bottom:8px;margin-bottom:10px;border-bottom:1px solid #282A2E}
+#toast{display:none;position:fixed;bottom:75px;left:50%;transform:translateX(-50%);background:#81C995;color:#000;padding:8px 16px;border-radius:20px;font-weight:bold;font-size:13px;z-index:999}
+</style>
+</head>
+<body>
+<div id="toast"></div>
+<div class="hdr">
+<div style="display:flex;gap:8px;align-items:center">
+<button class="btn" onclick="toggleSidebar()">☰</button>
+<b id="aTitle">🌍 Universal Encyclopedia</b></div>
+<div style="display:flex;gap:6px"><button class="btn bg" onclick="newChat()">+ New Chat</button><button class="btn" onclick="openB()">🌐 Encyclopedia Sites</button></div>
+</div>
+<div id="mainLayout">
+<div id="sidebar">
+<div class="shead"><b style="color:#A8C7FA">💬 Chats</b><button class="btn br" onclick="toggleSidebar()">✕</button></div>
+<div id="chatList" class="sbody"></div>
+<div style="padding:10px;background:#131314;display:flex;gap:6px">
+<button class="btn by" style="flex:1" onclick="openM()">⚙️ Menu</button>
+</div>
+</div>
+<div id="chatArea">
+<div id="chat"></div>
+<div class="btm">
+<label class="btn" style="margin:0">📷<input type="file" accept="image/*" style="display:none" onchange="chatImg(event)"></label>
+<input id="cInp" placeholder="ब्रह्मांड, पेड़-पौधे, जीव, कीड़े या रेसिपी खोजें..." style="margin:0" onkeydown="if(event.key==='Enter')sendM()">
+<button class="btn" style="background:#A8C7FA;color:#000;padding:11px 16px" onclick="sendM()">➤</button>
+</div>
+</div>
+</div>
+<div id="mMdl" class="mdl"><div class="hdr"><b style="color:#A8C7FA">⚙️ Master Settings</b><button class="btn br" onclick="closeM()">✕</button></div>
+<div style="display:flex;gap:4px;padding:8px;background:#1E1F22;overflow-x:auto"><button class="btn bg" onclick="closeM();openB()">🌐 Encyclopedia</button><button class="btn" onclick="mTab(2)">📍 Maps</button><button class="btn by" onclick="mTab(4)">👤 Profile</button></div><div id="mBox" class="mbody"></div></div>
+<div id="bMdl" class="mdl"><div class="hdr"><span id="vBdg" style="font-size:12px;color:#81C995;font-weight:bold">👤 User</span><div style="display:flex;gap:6px"><button class="btn by" id="admB" onclick="tglAdm()">🔑 Master Login</button><button class="btn br" onclick="closeB()">✕</button></div></div>
+<div id="pBox" style="display:none;background:#252830;padding:10px"><div style="font-size:12px;color:#FFD740;margin-bottom:4px">Enter Master Security PIN:</div><div style="display:flex;gap:6px"><input type="password" id="pInp" placeholder="Enter PIN" style="margin:0"><button class="btn by" onclick="chkP()">Login</button><button class="btn br" onclick="hideP()">✕</button></div></div>
+<div style="padding:10px;background:#1E1F22"><div id="sCnt" style="font-size:13px;font-weight:bold;color:#A8C7FA;margin-bottom:6px">📚 Cloud Encyclopedia Database</div><div style="display:flex;gap:6px"><input id="wInp" placeholder="विषय खोजें..." oninput="rSites()" style="margin:0"><button class="btn bg" onclick="openF(-1)">➕ Add Topic</button></div></div><div id="sArea" class="mbody"></div></div>
+<div id="fMdl" class="mdl"><div class="hdr"><b style="color:#81C995">➕ Encyclopedia Editor</b><button class="btn br" onclick="closeF()">✕</button></div><div class="mbody"><div id="sFlds"><label style="font-size:12px;color:#A8C7FA">Category Name:</label><input id="fSN" placeholder="ब्रह्मांड / पेड़-पौधे"><label style="font-size:12px;color:#A8C7FA">Main Title:</label><input id="fST" placeholder="शीर्षक"></div><label style="font-size:12px;color:#81C995">Section Title:</label><input id="fPT" placeholder="उप-शीर्षक"><label style="font-size:12px">Detailed Content:</label><textarea id="fPB" rows="7" placeholder="यहाँ पूरी जानकारी लिखें..."></textarea><button class="btn bg" style="width:100%;padding:12px" onclick="saveF()">💾 Save Info</button></div></div>
+<div id="vMdl" class="mdl"><div class="hdr"><span id="vUrl" style="color:#81C995;font-size:12px;font-weight:bold"></span><button class="btn br" onclick="closeV()">✕ Back</button></div><div class="mbody"><h2 id="vTit" style="color:#A8C7FA;margin:4px 0"></h2><div id="pBar" class="ptabs"></div><img id="vImg" class="cimg" style="display:none"><div id="vBdy" style="background:#1E1F22;padding:12px;border-radius:12px;white-space:pre-wrap;line-height:1.6"></div></div></div>
+<script>
+// Security note: client-side PINs are not secure. Move admin authentication to a server before public use.
+const SUPABASE_URL="https://rsuubnqbicwaqecqvwcg.supabase.co";
+const SUPABASE_KEY="sb_publishable_eeMJzkDFl2NuiAF0onshUw_L815KxMS";
+let supabaseClient = null;
+function getCloud(){ try { if (!supabaseClient && window.supabase?.createClient) supabaseClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY); } catch(e){} return supabaseClient; }
+const LOCAL_SITES_KEY="dkmk_local_sites_v1", PENDING_KEY="dkmk_pending_ops_v1";
+function cacheSites(){ sS(LOCAL_SITES_KEY,JSON.stringify(sites)); }
+function pendingOps(){ try{return JSON.parse(sG(PENDING_KEY,"[]"))}catch(e){return []} }
+function queueOp(op){
+  // Keep only the latest pending operation for each record, preventing stale
+  // upserts from resurrecting a record that was later deleted.
+  const id=op.type==="upsert"?op.item?.id:op.id;
+  if(!id)return;
+  let q=pendingOps().filter(x=>(x.type==="upsert"?x.item?.id:x.id)!==id);
+  q.push(op);sS(PENDING_KEY,JSON.stringify(q));
+}
+async function syncPending(){
+  const client=getCloud();if(!navigator.onLine||!client)return;
+  const q=pendingOps(),left=[];
+  for(const op of q){
+    try{
+      let r;
+      if(op.type==="upsert")r=await client.from("encyclopedia").upsert({id:op.item.id,content:op.item});
+      else if(op.type==="delete")r=await client.from("encyclopedia").delete().eq("id",op.id);
+      else continue;
+      if(r?.error)left.push(op);
+    }catch(e){left.push(op);}
+  }
+  sS(PENDING_KEY,JSON.stringify(left));
+  if(q.length>left.length)tst("☁️ Offline changes synced");
+}
+
+let mem={};
+function sG(k,d){try{return localStorage.getItem(k)||d}catch(e){return mem[k]||d}}
+function sS(k,v){try{localStorage.setItem(k,v)}catch(e){mem[k]=v}}
+let cfg=JSON.parse(sG("ai_cfg",'{"user_id":"u_'+Math.floor(Math.random()*10000)+'","user_name":"Deepak.mk61","is_master":false,"auto_speak":true}'));
+let brain=Object.assign({
+    "hello": "नमस्ते बॉस! यूनिवर्सल एनसाइक्लोपीडिया में आपका स्वागत है।",
+    "universe": "ब्रह्मांड अरबों आकाशगंगाओं, तारों और ग्रहों से मिलकर बना है।",
+    "recipe": "आपातकालीन और सात्विक भोजन के लिए मूंग दाल की खिचड़ी सबसे उत्तम है।"
+},JSON.parse(sG("ai_brain","{}")));
+
+let sites = [];
+
+async function loadCloudSites(){
+  // Render the last saved copy first, so opening the app does not depend on internet.
+  try { const cached=JSON.parse(sG(LOCAL_SITES_KEY,"[]")); if(Array.isArray(cached)) sites=cached; } catch(e){}
+  rSites();
+  const client=getCloud();
+  if(navigator.onLine && client){
+    try{
+      const {data,error}=await client.from("encyclopedia").select("*");
+      if(!error && Array.isArray(data)){
+        const cloud=data.map(d=>d && d.content).filter(x=>x && x.id);
+        const local=(()=>{try{const x=JSON.parse(sG(LOCAL_SITES_KEY,"[]"));return Array.isArray(x)?x:[]}catch(e){return [];}})();
+        const pending=pendingOps();
+        const deleted=new Set(pending.filter(x=>x.type==="delete").map(x=>x.id));
+        const dirty=new Map(pending.filter(x=>x.type==="upsert"&&x.item?.id).map(x=>[x.item.id,x.item]));
+        const merged=new Map();
+        cloud.forEach(x=>{if(!deleted.has(x.id))merged.set(x.id,x);});
+        // Preserve local-only records; pending upserts override cloud records.
+        local.forEach(x=>{if(x?.id&&!deleted.has(x.id)&&!merged.has(x.id))merged.set(x.id,x);});
+        dirty.forEach((x,id)=>{if(!deleted.has(id))merged.set(id,x);});
+        sites=Array.from(merged.values());
+        cacheSites();rSites();
+        await syncPending();
+      }
+    }catch(e){console.warn("Cloud unavailable; using local cache",e);}
+  }
+  if(!sites.length){
+    sites=[{id:"site_univ",site_name:"🌌 ब्रह्मांड और अंतरिक्ष",title:"ब्रह्मांड, आकाशगंगा और ब्लैक होल",content:"ब्रह्मांड में आकाशगंगाएँ, तारे, ग्रह और ब्लैक होल मौजूद हैं।",parts:[{part_title:"मिल्की वे और ब्लैक होल",part_content:"हमारी पृथ्वी मिल्की वे गैलेक्सी का हिस्सा है। ब्लैक होल अंतरिक्ष का वह क्षेत्र है जहाँ गुरुत्वाकर्षण बहुत अधिक होता है।",part_image:""}],author_id:"MASTER_ADMIN",author_name:"👑 Master Owner"}];
+  }
+  cacheSites();rSites();
+}
+
+let threads=JSON.parse(sG("ai_threads", "[]"));
+let currThreadId=sG("ai_curr_thread","");
+let aud=null, eMod={si:-1};
+function tst(m){let t=document.getElementById("toast");t.innerText=m;t.style.display="block";setTimeout(()=>t.style.display="none",2200)}
+function sv(){sS("ai_cfg",JSON.stringify(cfg));sS("ai_brain",JSON.stringify(brain));sS("ai_threads",JSON.stringify(threads));sS("ai_curr_thread",currThreadId)}
+function spk(t) {
+  if (!("speechSynthesis" in window)) {
+    alert("आपका ब्राउज़र आवाज़ चलाने की सुविधा सपोर्ट नहीं करता।");
+    return;
+  }
+
+  window.speechSynthesis.cancel();
+
+  const textToRead = String(t || "").trim();
+  if (!textToRead) {
+    alert("सुनाने के लिए कोई टेक्स्ट नहीं मिला।");
+    return;
+  }
+
+  const speech = new SpeechSynthesisUtterance(textToRead);
+  speech.lang = "hi-IN";
+  speech.rate = 1;
+  speech.volume = 1;
+
+  speech.onerror = function (event) {
+    alert("आवाज़ में समस्या: " + event.error);
+  };
+
+  window.speechSynthesis.speak(speech);
+}
+
+function stp() {
+  if ("speechSynthesis" in window) {
+    window.speechSynthesis.cancel();
+  }
+}
+function toggleSidebar(){document.getElementById("sidebar").classList.toggle("open");renderThreads()}
+function newChat(){let id="th_"+Date.now();threads.unshift({id:id,title:"New Chat",pinned:false,msgs:[]});currThreadId=id;sv();renderThreads();loadCurrChat();toggleSidebar()}
+function renderThreads(){
+  let list=document.getElementById("chatList");list.innerHTML="";
+  threads.sort((a,b)=>(b.pinned?1:0)-(a.pinned?1:0));
+  if(threads.length===0){newChat();return}
+  if(!currThreadId)currThreadId=threads[0].id;
+  threads.forEach(th=>{
+    let d=document.createElement("div");d.className="chat-item "+(th.id===currThreadId?"active":"");
+    d.innerHTML='<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" onclick="switchThread(\''+th.id+'\')">'+(th.pinned?"📌 ":"💬 ")+th.title+'</span><div style="display:flex;gap:4px"><button class="btn" style="padding:2px 6px;font-size:10px" onclick="pinTh(event,\''+th.id+'\')">📌</button><button class="btn br" style="padding:2px 6px;font-size:10px" onclick="delTh(event,\''+th.id+'\')">🗑️</button></div>';
+    list.appendChild(d);
+  })
+}
+function switchThread(id){currThreadId=id;sv();renderThreads();loadCurrChat();toggleSidebar()}
+function pinTh(e,id){e.stopPropagation();let th=threads.find(x=>x.id===id);if(th)th.pinned=!th.pinned;sv();renderThreads()}
+function delTh(e,id){e.stopPropagation();threads=threads.filter(x=>x.id!==id);sv();renderThreads();loadCurrChat()}
+function loadCurrChat(){
+  let chat=document.getElementById("chat");chat.innerHTML="";
+  let th=threads.find(x=>x.id===currThreadId);
+  if(!th){newChat();return}
+  th.msgs.forEach(m=>{
+    if(m.sender==="user")usrC(m.txt,m.img,false);
+    else botC(m.txt,m.img,false);
+  });
+  chat.scrollTop=chat.scrollHeight;
+}
+function appendMsg(sender,txt,img){
+  let th=threads.find(x=>x.id===currThreadId);
+  if(!th){newChat();th=threads.find(x=>x.id===currThreadId)}
+  if(th.title==="New Chat"&&sender==="user"){th.title=txt.slice(0,25)+(txt.length>25?"...":"")}
+  th.msgs.push({sender:sender,txt:txt,img:img});sv();renderThreads();
+}
+function botC(t,im="",save=true){
+  const chat=document.getElementById("chat"),d=document.createElement("div");d.className="card bc";
+  const head=document.createElement("div");head.style.cssText="color:#A8C7FA;font-size:12px;font-weight:bold";head.textContent="✦ Universal Encyclopedia";d.appendChild(head);
+  if(im){const img=document.createElement("img");img.className="cimg";img.src=im;img.alt="";d.appendChild(img);}
+  const body=document.createElement("div");body.style.whiteSpace="pre-wrap";body.textContent=String(t??"");d.appendChild(body);
+  const actions=document.createElement("div");actions.className="ab";
+  const listen=document.createElement("button");listen.className="btn";listen.textContent="🔊 Listen";listen.onclick=()=>spk(String(t??""));
+  const stop=document.createElement("button");stop.className="btn";stop.textContent="⏹️ Stop";stop.onclick=()=>stp();
+  actions.append(listen,stop);d.appendChild(actions);chat.appendChild(d);chat.scrollTop=chat.scrollHeight;
+  if(save)appendMsg("bot",String(t??""),im);
+}
+function usrC(t,im="",save=true){
+  const chat=document.getElementById("chat"),d=document.createElement("div");d.className="card uc";
+  if(im){const img=document.createElement("img");img.className="cimg";img.src=im;img.alt="";d.appendChild(img);}
+  const body=document.createElement("div");body.style.whiteSpace="pre-wrap";body.textContent=String(t??"");d.appendChild(body);
+  chat.appendChild(d);chat.scrollTop=chat.scrollHeight;if(save)appendMsg("user",String(t??""),im);
+}
+function chatImg(e){let f=e.target.files[0];if(!f)return;let r=new FileReader();r.onload=x=>{usrC("📎 "+f.name,x.target.result);botC("Photo received!")};r.readAsDataURL(f)}
+function normalizeText(v){return String(v||"").toLowerCase().normalize("NFKC").replace(/[^\p{L}\p{N}\s]/gu," ").replace(/\s+/g," ").trim()}
+function sendM(){
+  let i=document.getElementById("cInp"),t=i.value.trim();if(!t)return;
+  usrC(t);i.value="";let q=normalizeText(t);
+  // Normal conversation intents should not require an encyclopedia article.
+  if(/^(hi|hello|hey|namaste|नमस्ते|हेलो|कैसे हो|तुम कैसे हो|kaise ho|kya haal|धन्यवाद|thank you|thanks)[ !?.।]*$/i.test(q)){
+    let reply=/धन्यवाद|thank you|thanks/.test(q)?"खुशी हुई मदद करके! 😊":"नमस्ते "+(cfg.user_name||"दोस्त")+"! 😊 मैं DKMK हूँ। तुम मुझसे सामान्य बात कर सकते हो या अपनी सेव की हुई Encyclopedia जानकारी पूछ सकते हो।";botC(reply);return;
+  }
+  if(/मेरा नाम क्या|what is my name|mera naam kya/.test(q)){botC("मेरी लोकल प्रोफ़ाइल में नाम है: "+(cfg.user_name||"अभी सेव नहीं है")+"।");return;}
+  if(/मुझे समझ नहीं|samajh nahi|explain simply|आसान भाषा/.test(q)){botC("बिल्कुल। जिस हिस्से को समझना है, उसका नाम या सवाल थोड़ा और साफ़ लिखो। मैं सेव की हुई जानकारी के आधार पर आसान भाषा में समझाने की कोशिश करूँगा।");return;}
+  const stop=new Set(["kya","hai","he","ka","ki","ke","ko","me","mein","the","is","what","when","where","who","how","tell","about","please","batao","btao","mujhe","hai","है","क्या","बताओ","मुझे","के","का","की","में","और","कब","कौन","कैसे"]);
+  const terms=q.split(" ").filter(w=>w.length>1&&!stop.has(w));let best=null,bestScore=0;
+  for(const site of sites){for(const part of (site.parts||[])){
+    const title=normalizeText((site.site_name||"")+" "+(site.title||"")+" "+(part.part_title||""));const body=normalizeText(part.part_content||"");let score=0;
+    for(const term of terms){if(title.includes(term))score+=4;if(body.includes(term))score+=1;}
+    if(q.length>5 && title.includes(q))score+=8;
+    if(score>bestScore){bestScore=score;best={site,part};}
+  }}
+  if(best && bestScore>=Math.max(2,Math.ceil(terms.length*1.2))){botC("📚 "+best.site.site_name+" — "+best.part.part_title+"\n\n"+best.part.part_content,best.part.part_image||"");return;}
+  for(let k in brain){if(q===normalizeText(k)||q.includes(normalizeText(k))){botC(brain[k]);return}}
+  // Ask the owner to teach DKMK; saving is explicit and local-first.
+  const answer=prompt("मुझे इसका भरोसेमंद जवाब आपकी सेव की हुई जानकारी में नहीं मिला। अगर आपको जवाब पता है, तो यहाँ लिखकर DKMK को सिखा सकते हैं। खाली छोड़ने पर कुछ सेव नहीं होगा:");
+  if(answer && answer.trim()){
+    const learned=answer.trim();const key=prompt("इस जवाब को याद रखने के लिए छोटा विषय/नाम लिखें:",t);
+    if(key&&key.trim()){brain[key.trim().toLowerCase()]=learned;sv();botC("धन्यवाद! मैंने यह जानकारी इस डिवाइस पर सेव कर ली है। अगली बार संबंधित विषय पूछने पर इसे इस्तेमाल करने की कोशिश करूँगा।");}
+    else botC("ठीक है, विषय का नाम नहीं मिला, इसलिए जानकारी सेव नहीं की गई।");
+  }else botC("मुझे इसका जवाब अपनी सेव की हुई जानकारी में नहीं मिला। तुम मुझे सिखा सकते हो—सवाल फिर से भेजो और जवाब देने पर मैं उसे इस डिवाइस पर याद रखूँगा।");
+}
+
+function openM(){document.getElementById("mMdl").classList.add("open");mTab(4)} function closeM(){document.getElementById("mMdl").classList.remove("open")}
+function mTab(n){let b=document.getElementById("mBox");
+if(n===4){b.innerHTML='<h3>👤 User Profile</h3><div class="scard"><b>Your Name:</b><br><br><input id="uNI" value="'+cfg.user_name+'"><button class="btn bg" onclick="cfg.user_name=document.getElementById(\'uNI\').value;sv();tst(\'Name Saved!\')">💾 Save Name</button></div>'}
+else if(n===2){b.innerHTML='<h3>📍 Maps</h3><div class="scard"><button class="btn bg" style="width:100%" onclick="window.location.href=\'https://www.google.com/maps\'">🗺️ Open Google Maps</button></div>'}}
+function openB(){document.getElementById("bMdl").classList.add("open");rSites()} function closeB(){document.getElementById("bMdl").classList.remove("open")}
+function canEdit(s){return cfg.is_master||s.author_id===cfg.user_id}
+function tglAdm(){if(cfg.is_master){cfg.is_master=false;sv();rSites();tst("Master Logged Out");document.getElementById("admB").innerText="🔑 Master Login"}else{document.getElementById("pBox").style.display="block"}}
+function hideP(){document.getElementById("pBox").style.display="none"}
+async function chkP(){
+  if(false){
+    cfg.is_master=true;sv();hideP();document.getElementById("pInp").value="";rSites();
+    tst("👑 Master Owner Mode Active!");
+    document.getElementById("admB").innerText="🔓 Master Active";
+  } else {
+    tst("Admin PIN को HTML में रखना सुरक्षित नहीं है; backend login सेटअप जरूरी है।");
+  }
+}
+function rSites(){
+  let q=document.getElementById("wInp").value.toLowerCase().trim(),a=document.getElementById("sArea");a.innerHTML="";
+  sites.forEach((s,i)=>{
+    let txt=(s.site_name+" "+s.title+" "+JSON.stringify(s.parts)).toLowerCase();if(q&&!txt.includes(q))return;
+    let c=document.createElement("div");c.className="scard";
+    let editable=canEdit(s);
+    let mb=editable?'<button class="btn by" onclick="openF('+i+')">✏️ Edit</button> <button class="btn br" onclick="delSite(\''+s.id+'\', '+i+')">🗑️ Delete</button>':'<small style="color:#888">🔒 Master Locked</small>';
+    c.innerHTML='<div style="display:flex;justify-content:space-between;font-size:12px;color:#81C995"><b>'+s.site_name+'</b><span>✍️ '+s.author_name+'</span></div><h3 style="color:#A8C7FA;margin:6px 0" onclick="viewS('+i+',0)">'+s.title+'</h3><div style="display:flex;gap:6px;align-items:center"><button class="btn" onclick="viewS('+i+',0)">📖 Read Info</button> '+mb+'</div>';
+    a.appendChild(c);
+  })
+}
+function closeF(){document.getElementById("fMdl").classList.remove("open")}
+function openF(si){eMod.si=si;let s=si>=0?sites[si]:null;document.getElementById("fSN").value=s?s.site_name:"";document.getElementById("fST").value=s?s.title:"";document.getElementById("fPT").value=s?(s.parts?.[0]?.part_title||"Part 1"):"Part 1";document.getElementById("fPB").value=s?(s.parts?.[0]?.part_content||""):"";document.getElementById("fMdl").classList.add("open")}
+
+async function saveF(){
+  let pt=document.getElementById("fPT").value.trim()||"Part 1",pb=document.getElementById("fPB").value.trim();if(!pb)return tst("Write content!");
+  let sn=document.getElementById("fSN").value.trim(),st=document.getElementById("fST").value.trim();if(!sn||!st)return tst("Fill Name & Title!");
+  
+  if(eMod.si>=0){
+    let s=sites[eMod.si];
+    if(!cfg.is_master && s.author_id==="MASTER_ADMIN")return tst("❌ Master content is locked!");
+    s.site_name=sn;s.title=st;s.parts=Array.isArray(s.parts)?s.parts:[];if(!s.parts.length)s.parts.push({part_title:pt,part_content:pb,part_image:""});else{s.parts[0].part_title=pt;s.parts[0].part_content=pb;}
+    cacheSites();
+    const client=getCloud(); if(navigator.onLine && client){let {error}=await client.from('encyclopedia').upsert({ id: s.id, content: s });if(error)queueOp({type:"upsert",item:s});}else queueOp({type:"upsert",item:s});
+  }else{
+    let newId = "s_" + Date.now();
+    let newObj = {
+      id: newId,
+      site_name: sn,
+      title: st,
+      author_id: cfg.is_master ? "MASTER_ADMIN" : cfg.user_id,
+      author_name: cfg.is_master ? "👑 Master Owner" : cfg.user_name,
+      parts: [{part_title: pt, part_content: pb, part_image: ""}]
+    };
+    sites.unshift(newObj);
+    cacheSites();
+    const client=getCloud(); if(navigator.onLine && client){let {error}=await client.from('encyclopedia').upsert({ id: newId, content: newObj });if(error)queueOp({type:"upsert",item:newObj});}else queueOp({type:"upsert",item:newObj});
+  }
+  cacheSites(); closeF();rSites();tst(navigator.onLine?"✅ Saved locally; cloud sync attempted":"✅ Offline में इस डिवाइस पर सेव हुआ");
+}
+
+async function delSite(id, i){
+  if(!cfg.is_master && sites[i].author_id === "MASTER_ADMIN") {
+    tst("❌ Cannot delete Master content!");
+    return;
+  }
+  const client=getCloud(); let removed=false; if(navigator.onLine&&client){try{let {error}=await client.from('encyclopedia').delete().eq('id',id);removed=!error;}catch(e){}}
+  if(!removed)queueOp({type:"delete",id});
+  sites.splice(i, 1); cacheSites(); rSites();
+  tst(navigator.onLine?"🗑️ Deleted locally/cloud sync queued":"🗑️ Offline में हटाया; sync बाद में होगा");
+}
+
+function closeV(){document.getElementById("vMdl").classList.remove("open")}
+function viewS(si,pi){
+  let s=sites[si],p=s.parts[pi]||s.parts[0];
+  document.getElementById("vMdl").classList.add("open");
+  document.getElementById("vTit").innerText=s.title;
+  let imgEl=document.getElementById("vImg");
+  if(p.part_image){imgEl.src=p.part_image;imgEl.style.display="block"}else{imgEl.style.display="none"}
+  let tb=document.getElementById("pBar");tb.innerHTML="";
+  s.parts.forEach((pt,i)=>{let b=document.createElement("button");b.className="btn "+(i===pi?"bg":"");b.innerText=pt.part_title;b.onclick=()=>viewS(si,i);tb.appendChild(b)});
+  document.getElementById("vBdy").innerText=p.part_content;
+}
+
+window.addEventListener("online",()=>{syncPending();loadCloudSites();});
+window.onload=()=>{ if(threads.length===0)newChat();else loadCurrChat(); loadCloudSites(); }; 
+</script>
+
+<script>
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("./sw.js")
+      .catch(err => console.error("Service Worker registration failed:", err));
+  });
+}
+</script>
+
+</body>
+</html>
