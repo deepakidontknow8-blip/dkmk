@@ -62,8 +62,13 @@ input,textarea{background:#282A2E;color:#fff;border:1px solid #3C4043;padding:11
 <div id="mMdl" class="mdl"><div class="hdr"><b style="color:#A8C7FA">⚙️ Master Settings</b><button class="btn br" onclick="closeM()">✕</button></div>
 <div style="display:flex;gap:4px;padding:8px;background:#1E1F22;overflow-x:auto"><button class="btn bg" onclick="closeM();openB()">🌐 Encyclopedia</button><button class="btn" onclick="mTab(2)">📍 Maps</button><button class="btn by" onclick="mTab(4)">👤 Profile</button></div><div id="mBox" class="mbody"></div></div>
 <div id="bMdl" class="mdl"><div class="hdr"><span id="vBdg" style="font-size:12px;color:#81C995;font-weight:bold">👤 User</span><div style="display:flex;gap:6px"><button class="btn by" id="admB" onclick="tglAdm()">🔑 Master Login</button><button class="btn br" onclick="closeB()">✕</button></div></div>
-<div id="pBox" style="display:none;background:#252830;padding:10px"><div style="font-size:12px;color:#FFD740;margin-bottom:4px">Enter Master Security PIN:</div><div style="display:flex;gap:6px"><input type="password" id="pInp" placeholder="Enter PIN" style="margin:0"><button class="btn by" onclick="chkP()">Login</button><button class="btn br" onclick="hideP()">✕</button></div></div>
-<div style="padding:10px;background:#1E1F22"><div id="sCnt" style="font-size:13px;font-weight:bold;color:#A8C7FA;margin-bottom:6px">📚 Cloud Encyclopedia Database</div><div style="display:flex;gap:6px"><input id="wInp" placeholder="विषय खोजें..." oninput="rSites()" style="margin:0"><button class="btn bg" onclick="openF(-1)">➕ Add Topic</button></div></div><div id="sArea" class="mbody"></div></div>
+<div id="pBox" style="display:none;background:#252830;padding:10px">
+<div style="font-size:12px;color:#FFD740;margin-bottom:6px">Master Login (Supabase account)</div>
+<input type="email" id="masterEmail" autocomplete="username" placeholder="Master email" style="margin:0 0 6px">
+<input type="password" id="masterPassword" autocomplete="current-password" placeholder="Master password" style="margin:0 0 6px">
+<div style="display:flex;gap:6px"><button class="btn by" onclick="chkP()">Login</button><button class="btn br" onclick="hideP()">✕</button></div>
+<div style="font-size:11px;color:#aaa;margin-top:6px">Use the account created in Supabase Authentication → Users. Never share the password.</div></div>
+<div style="padding:10px;background:#1E1F22"><div id="sCnt" style="font-size:13px;font-weight:bold;color:#A8C7FA;margin-bottom:6px">📚 Cloud Encyclopedia Database</div><div style="display:flex;gap:6px"><input id="wInp" placeholder="विषय खोजें..." oninput="rSites()" style="margin:0"><button class="btn bg" id="addTopicBtn" style="display:none" onclick="openF(-1)">➕ Add Topic</button></div></div><div id="sArea" class="mbody"></div></div>
 <div id="fMdl" class="mdl"><div class="hdr"><b style="color:#81C995">➕ Encyclopedia Editor</b><button class="btn br" onclick="closeF()">✕</button></div><div class="mbody"><div id="sFlds"><label style="font-size:12px;color:#A8C7FA">Category Name:</label><input id="fSN" placeholder="ब्रह्मांड / पेड़-पौधे"><label style="font-size:12px;color:#A8C7FA">Main Title:</label><input id="fST" placeholder="शीर्षक"></div><label style="font-size:12px;color:#81C995">Section Title:</label><input id="fPT" placeholder="उप-शीर्षक"><label style="font-size:12px">Detailed Content:</label><textarea id="fPB" rows="7" placeholder="यहाँ पूरी जानकारी लिखें..."></textarea><button class="btn bg" style="width:100%;padding:12px" onclick="saveF()">💾 Save Info</button></div></div>
 <div id="vMdl" class="mdl"><div class="hdr"><span id="vUrl" style="color:#81C995;font-size:12px;font-weight:bold"></span><button class="btn br" onclick="closeV()">✕ Back</button></div><div class="mbody"><h2 id="vTit" style="color:#A8C7FA;margin:4px 0"></h2><div id="pBar" class="ptabs"></div><img id="vImg" class="cimg" style="display:none"><div id="vBdy" style="background:#1E1F22;padding:12px;border-radius:12px;white-space:pre-wrap;line-height:1.6"></div></div></div>
 <script>
@@ -72,6 +77,21 @@ const SUPABASE_URL="https://rsuubnqbicwaqecqvwcg.supabase.co";
 const SUPABASE_KEY="sb_publishable_eeMJzkDFl2NuiAF0onshUw_L815KxMS";
 let supabaseClient = null;
 function getCloud(){ try { if (!supabaseClient && window.supabase?.createClient) supabaseClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY); } catch(e){} return supabaseClient; }
+const MASTER_UID = "ace9449d-b535-4029-99b9-e58972f66a19";
+let masterAuthenticated = false;
+async function refreshMasterState(){
+  const client=getCloud();
+  let uid=null;
+  if(client){try{const {data}=await client.auth.getSession();uid=data?.session?.user?.id||null;}catch(e){}}
+  masterAuthenticated=(uid===MASTER_UID);
+  cfg.is_master=masterAuthenticated;
+  const add=document.getElementById("addTopicBtn");
+  if(add)add.style.display=masterAuthenticated?"inline-block":"none";
+  document.getElementById("admB").innerText=masterAuthenticated?"🔓 Master Active":"🔑 Master Login";
+  document.getElementById("vBdg").innerText=masterAuthenticated?"👑 Master":"👤 User";
+  rSites();
+}
+
 const LOCAL_SITES_KEY="dkmk_local_sites_v1", PENDING_KEY="dkmk_pending_ops_v1";
 function cacheSites(){ sS(LOCAL_SITES_KEY,JSON.stringify(sites)); }
 function pendingOps(){ try{return JSON.parse(sG(PENDING_KEY,"[]"))}catch(e){return []} }
@@ -257,22 +277,53 @@ function sendM(){
   }else botC("मुझे इसका जवाब अपनी सेव की हुई जानकारी में नहीं मिला। तुम मुझे सिखा सकते हो—सवाल फिर से भेजो और जवाब देने पर मैं उसे इस डिवाइस पर याद रखूँगा।");
 }
 
+let brainKeyList=[];
+function openBrainManager(){
+  if(!masterAuthenticated)return tst("Sirf Master memory edit kar sakta hai.");
+  brainKeyList=Object.keys(brain);
+  let html='<h3>🧠 Saved learning (this device)</h3><p style="color:#aaa;font-size:12px">Yahan se sirf chuni hui learning delete hogi. Encyclopedia topics alag hain.</p>';
+  if(!brainKeyList.length)html+='<div class="scard">Koi learned answer nahi hai.</div>';
+  brainKeyList.forEach((k,i)=>{html+='<div class="scard"><b>'+escHTML(k)+'</b><p>'+escHTML(String(brain[k]))+'</p><button class="btn br" onclick="deleteBrainKeyAt('+i+')">🗑️ Delete this learning</button></div>';});
+  document.getElementById("mBox").innerHTML=html;
+}
+function deleteBrainKeyAt(i){const k=brainKeyList[i];if(typeof k==="string")deleteBrainKey(k);}
+function escHTML(v){return String(v).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");}
+function deleteBrainKey(k){
+  if(!masterAuthenticated)return tst("Sirf Master delete kar sakta hai.");
+  if(!Object.prototype.hasOwnProperty.call(brain,k))return;
+  if(!confirm('Delete only saved learning "'+k+'"?'))return;
+  delete brain[k];sv();tst("Selected learning deleted");openBrainManager();
+}
+
 function openM(){document.getElementById("mMdl").classList.add("open");mTab(4)} function closeM(){document.getElementById("mMdl").classList.remove("open")}
 function mTab(n){let b=document.getElementById("mBox");
-if(n===4){b.innerHTML='<h3>👤 User Profile</h3><div class="scard"><b>Your Name:</b><br><br><input id="uNI" value="'+cfg.user_name+'"><button class="btn bg" onclick="cfg.user_name=document.getElementById(\'uNI\').value;sv();tst(\'Name Saved!\')">💾 Save Name</button></div>'}
+if(n===4){b.innerHTML='<h3>👤 User Profile</h3><div class="scard"><b>Your Name:</b><br><br><input id="uNI" value="'+escHTML(cfg.user_name)+'"><button class="btn bg" onclick="cfg.user_name=document.getElementById(\'uNI\').value;sv();tst(\'Name Saved!\')">💾 Save Name</button></div>'+(masterAuthenticated?'<div class="scard"><button class="btn by" onclick="openBrainManager()">🧠 Manage Saved Learning</button></div>':'') }
 else if(n===2){b.innerHTML='<h3>📍 Maps</h3><div class="scard"><button class="btn bg" style="width:100%" onclick="window.location.href=\'https://www.google.com/maps\'">🗺️ Open Google Maps</button></div>'}}
 function openB(){document.getElementById("bMdl").classList.add("open");rSites()} function closeB(){document.getElementById("bMdl").classList.remove("open")}
-function canEdit(s){return cfg.is_master||s.author_id===cfg.user_id}
-function tglAdm(){if(cfg.is_master){cfg.is_master=false;sv();rSites();tst("Master Logged Out");document.getElementById("admB").innerText="🔑 Master Login"}else{document.getElementById("pBox").style.display="block"}}
+function canEdit(s){return masterAuthenticated}
+async function tglAdm(){
+  if(masterAuthenticated){
+    const client=getCloud();try{if(client)await client.auth.signOut();}catch(e){}
+    masterAuthenticated=false;cfg.is_master=false;sv();hideP();await refreshMasterState();tst("Master logged out");
+  }else{document.getElementById("pBox").style.display="block";}
+}
 function hideP(){document.getElementById("pBox").style.display="none"}
 async function chkP(){
-  if(false){
-    cfg.is_master=true;sv();hideP();document.getElementById("pInp").value="";rSites();
-    tst("👑 Master Owner Mode Active!");
-    document.getElementById("admB").innerText="🔓 Master Active";
-  } else {
-    tst("Admin PIN को HTML में रखना सुरक्षित नहीं है; backend login सेटअप जरूरी है।");
-  }
+  const client=getCloud();
+  const email=document.getElementById("masterEmail").value.trim();
+  const password=document.getElementById("masterPassword").value;
+  if(!client)return tst("Login library unavailable. Internet ke saath reload karo.");
+  if(!email||!password)return tst("Email aur password dono likho.");
+  try{
+    const {data,error}=await client.auth.signInWithPassword({email,password});
+    if(error)throw error;
+    if(data?.user?.id!==MASTER_UID){
+      await client.auth.signOut();masterAuthenticated=false;cfg.is_master=false;sv();
+      return tst("Is account ko Master permission nahi hai.");
+    }
+    document.getElementById("masterPassword").value="";
+    hideP();await refreshMasterState();tst("👑 Master login successful");
+  }catch(e){tst("Login failed: email/password check karo.");}
 }
 function rSites(){
   let q=document.getElementById("wInp").value.toLowerCase().trim(),a=document.getElementById("sArea");a.innerHTML="";
@@ -286,9 +337,10 @@ function rSites(){
   })
 }
 function closeF(){document.getElementById("fMdl").classList.remove("open")}
-function openF(si){eMod.si=si;let s=si>=0?sites[si]:null;document.getElementById("fSN").value=s?s.site_name:"";document.getElementById("fST").value=s?s.title:"";document.getElementById("fPT").value=s?(s.parts?.[0]?.part_title||"Part 1"):"Part 1";document.getElementById("fPB").value=s?(s.parts?.[0]?.part_content||""):"";document.getElementById("fMdl").classList.add("open")}
+function openF(si){if(!masterAuthenticated)return tst("Sirf Master information edit kar sakta hai.");eMod.si=si;let s=si>=0?sites[si]:null;document.getElementById("fSN").value=s?s.site_name:"";document.getElementById("fST").value=s?s.title:"";document.getElementById("fPT").value=s?(s.parts?.[0]?.part_title||"Part 1"):"Part 1";document.getElementById("fPB").value=s?(s.parts?.[0]?.part_content||""):"";document.getElementById("fMdl").classList.add("open")}
 
 async function saveF(){
+  if(!masterAuthenticated)return tst("Sirf Master information edit kar sakta hai.");
   let pt=document.getElementById("fPT").value.trim()||"Part 1",pb=document.getElementById("fPB").value.trim();if(!pb)return tst("Write content!");
   let sn=document.getElementById("fSN").value.trim(),st=document.getElementById("fST").value.trim();if(!sn||!st)return tst("Fill Name & Title!");
   
@@ -316,6 +368,7 @@ async function saveF(){
 }
 
 async function delSite(id, i){
+  if(!masterAuthenticated)return tst("Sirf Master information delete kar sakta hai.");
   if(!cfg.is_master && sites[i].author_id === "MASTER_ADMIN") {
     tst("❌ Cannot delete Master content!");
     return;
@@ -339,7 +392,7 @@ function viewS(si,pi){
 }
 
 window.addEventListener("online",()=>{syncPending();loadCloudSites();});
-window.onload=()=>{ if(threads.length===0)newChat();else loadCurrChat(); loadCloudSites(); }; 
+window.onload=async()=>{ cfg.is_master=false;masterAuthenticated=false;if(threads.length===0)newChat();else loadCurrChat();await refreshMasterState();loadCloudSites();const client=getCloud();if(client)client.auth.onAuthStateChange(()=>{setTimeout(refreshMasterState,0);}); }; 
 </script>
 
 <script>
