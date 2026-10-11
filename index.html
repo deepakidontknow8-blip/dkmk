@@ -258,12 +258,15 @@ function usrC(t,im="",save=true){
 }
 function chatImg(e){let f=e.target.files[0];if(!f)return;let r=new FileReader();r.onload=x=>{usrC("📎 "+f.name,x.target.result);botC("Photo received!")};r.readAsDataURL(f)}
 function normalizeText(v){return String(v||"").toLowerCase().normalize("NFKC").replace(/[^\p{L}\p{N}\s]/gu," ").replace(/\s+/g," ").trim()}
+
 async function sendM(){
   const input=document.getElementById("cInp"),question=input.value.trim();
   if(!question)return;
   usrC(question);input.value="";
+  
   const th=threads.find(x=>x.id===currThreadId);
   const history=(th?.msgs||[]).slice(-12).map(m=>({role:m.sender==="user"?"user":"assistant",content:String(m.txt||"").slice(0,3000)}));
+  
   const knowledge=[];
   for(const site of sites){
     for(const part of (site.parts||[])){
@@ -271,8 +274,38 @@ async function sendM(){
       if(content)knowledge.push({category:site.site_name||"",title:site.title||"",section:part.part_title||"",content:content.slice(0,5000)});
     }
   }
+
+  // 1. Pehle local encyclopedia / brain mein match check karein (Offline Search)
+  let localAnswer = "";
+  const qLower = question.toLowerCase();
+  for(const k of Object.keys(brain)) {
+    if(qLower.includes(k.toLowerCase()) || k.toLowerCase().includes(qLower)) {
+      localAnswer = brain[k];
+      break;
+    }
+  }
+  if(!localAnswer) {
+    for(const item of knowledge) {
+      if(item.title.toLowerCase().includes(qLower) || item.content.toLowerCase().includes(qLower) || qLower.includes(item.title.toLowerCase())) {
+        localAnswer = item.title + ":\n" + item.content;
+        break;
+      }
+    }
+  }
+
+  // 2. Agar internet nahi hai, toh local jawab turant dikhayein
+  if(!navigator.onLine) {
+    if(localAnswer) {
+      botC(localAnswer);
+    } else {
+      botC("Aap offline hain aur yeh jankari aapke local database mein nahi mili.");
+    }
+    return;
+  }
+
   const payload={question,history,profile:{name:cfg.user_name||""},knowledge:knowledge.slice(0,100)};
   const pending=document.createElement("div");pending.className="card bc";pending.id="aiThinking";pending.textContent="✦ DKMK AI soch raha hai…";document.getElementById("chat").appendChild(pending);document.getElementById("chat").scrollTop=document.getElementById("chat").scrollHeight;
+  
   try{
     const response=await fetch(SUPABASE_URL+"/functions/v1/smooth-handler",{
       method:"POST",
@@ -285,7 +318,12 @@ async function sendM(){
     pending.remove();botC(answer);
   }catch(err){
     pending.remove();
-    botC("AI service abhi connect nahi hai ya setup mein error hai. Error: "+String(err.message||err));
+    // 3. Agar online request fail ho jaye, toh local answer backup ke roop mein dikhayein
+    if(localAnswer) {
+      botC(localAnswer + "\n\n(Note: Internet connection na hone ki wajah se yeh offline database se liya gaya hai.)");
+    } else {
+      botC("AI service abhi connect nahi hai aur local database mein bhi yeh nahi mila. Error: "+String(err.message||err));
+    }
   }
 }
 
