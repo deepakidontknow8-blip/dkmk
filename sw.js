@@ -1,66 +1,51 @@
-/* DKMK offline shell cache. Bump CACHE_VERSION after changing app assets. */
-const CACHE_VERSION = "dkmk-shell-v3";
-const APP_SHELL = [
-  "./",
-  "./index.html",
-  "./manifest.json",
-  "./icon-192.png",
-  "./icon-512.png"
+const CACHE_NAME = 'dkmk-encyclopedia-v4';
+const assetsToCache = [
+  './',
+  './index.html',
+  './manifest.json',
+  'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2'
 ];
 
-self.addEventListener("install", event => {
-  event.waitUntil((async () => {
-    const cache = await caches.open(CACHE_VERSION);
-    await Promise.all(APP_SHELL.map(async path => {
-      try { await cache.add(path); } catch (_) { /* Optional file may not exist yet. */ }
-    }));
-    await self.skipWaiting();
-  })());
+// 1. Install Event: Sabhi zaroori files ko cache mein save karna
+self.addEventListener('install', event => {
+  event.waitUntil(
+    caches.open(CACHE_NAME).then(cache => {
+      return cache.addAll(assetsToCache);
+    })
+  );
+  self.skipWaiting();
 });
 
-self.addEventListener("activate", event => {
-  event.waitUntil((async () => {
-    const keys = await caches.keys();
-    await Promise.all(keys.filter(k => k.startsWith("dkmk-shell-") && k !== CACHE_VERSION).map(k => caches.delete(k)));
-    await self.clients.claim();
-  })());
+// 2. Activate Event: Purane cache ko saaf karna
+self.addEventListener('activate', event => {
+  event.waitUntil(
+    caches.keys().then(keys => {
+      return Promise.all(
+        keys.map(key => {
+          if (key !== CACHE_NAME) {
+            return caches.delete(key);
+          }
+        })
+      );
+    })
+  );
+  self.clients.claim();
 });
 
-self.addEventListener("fetch", event => {
-  const req = event.request;
-  if (req.method !== "GET") return;
-  const url = new URL(req.url);
-  // Do not intercept third-party requests (e.g. Supabase CDN).
-  if (url.origin !== self.location.origin) return;
-
-  if (req.mode === "navigate") {
-    event.respondWith((async () => {
-      try {
-        const fresh = await fetch(req);
-        if (fresh && fresh.ok) {
-          const cache = await caches.open(CACHE_VERSION);
-          cache.put("./index.html", fresh.clone()).catch(() => {});
+// 3. Fetch Event: Offline hone par cache se file dena
+self.addEventListener('fetch', event => {
+  event.respondWith(
+    caches.match(event.request).then(cachedResponse => {
+      if (cachedResponse) {
+        return cachedResponse;
+      }
+      return fetch(event.request).then(response => {
+        return response;
+      }).catch(() => {
+        if (event.request.mode === 'navigate') {
+          return caches.match('./index.html');
         }
-        return fresh;
-      } catch (_) {
-        return (await caches.match(req)) || (await caches.match("./index.html")) || Response.error();
-      }
-    })());
-    return;
-  }
-
-  event.respondWith((async () => {
-    const cached = await caches.match(req);
-    if (cached) return cached;
-    try {
-      const fresh = await fetch(req);
-      if (fresh && fresh.ok && url.origin === self.location.origin) {
-        const cache = await caches.open(CACHE_VERSION);
-        cache.put(req, fresh.clone()).catch(() => {});
-      }
-      return fresh;
-    } catch (_) {
-      return Response.error();
-    }
-  })());
+      });
+    })
+  );
 });
