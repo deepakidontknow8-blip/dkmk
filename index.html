@@ -270,11 +270,9 @@ async function sendM(){
     }
   }
 
-  // Pehle Master Saved Answers ya Local Brain/Encyclopedia se check karein
   let localAnswer = "";
   const qLower = question.toLowerCase();
   
-  // Master Saved Answers se check karein (agar offline save hain)
   try {
     const offlineAnswers = cachedMasterAnswers();
     for(const a of offlineAnswers) {
@@ -285,7 +283,6 @@ async function sendM(){
     }
   } catch(e){}
 
-  // Agar wahan na mile toh brain se check karein
   if(!localAnswer) {
     for(const k of Object.keys(brain)) {
       if(qLower.includes(k.toLowerCase()) || k.toLowerCase().includes(qLower)) {
@@ -295,7 +292,6 @@ async function sendM(){
     }
   }
 
-  // Agar fir bhi na mile toh sites/encyclopedia se check karein
   if(!localAnswer) {
     for(const item of knowledge) {
       if(item.title.toLowerCase().includes(qLower) || item.content.toLowerCase().includes(qLower) || qLower.includes(item.title.toLowerCase())) {
@@ -305,12 +301,11 @@ async function sendM(){
     }
   }
 
-  // Agar internet nahi hai
   if(!navigator.onLine) {
     if(localAnswer) {
       botC(localAnswer + "\n\n(Offline Mode)");
     } else {
-      botC("Aap offline hain aur yeh jankari aapke offline database mein nahi mili. Kripya naya topic 'Master Saved Answers' ya 'Encyclopedia' mein add karein.");
+      botC("Aap offline hain aur yeh jankari aapke offline database mein nahi mili.");
     }
     return;
   }
