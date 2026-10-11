@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Deepak.mk61</title>
+<link rel="manifest" href="./manifest.json">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
 <style>
 *{box-sizing:border-box;font-family:sans-serif} body{margin:0;background:#131314;color:#E3E3E3;display:flex;flex-direction:column;height:100vh;overflow:hidden}
@@ -137,7 +138,7 @@ function sS(k,v){try{localStorage.setItem(k,v)}catch(e){mem[k]=v}}
 let cfg=JSON.parse(sG("ai_cfg",'{"user_id":"u_'+Math.floor(Math.random()*10000)+'","user_name":"Deepak.mk61","is_master":false,"auto_speak":true}'));
 let brain=Object.assign({
     "hello": "नमस्ते बॉस! यूनिवर्सल एनसाइक्लोपीडिया में आपका स्वागत है।",
-    "universe": "ब्रह्मांड अरबों आकाशगंगाओं, तारों और ग्रहों से मिलकर बना है。",
+    "universe": "ब्रह्मांड अरबों आकाशगंगाओं, तारों और ग्रहों से मिलकर बना है।",
     "recipe": "आपातकालीन और सात्विक भोजन के लिए मूंग दाल की खिचड़ी सबसे उत्तम है।"
 },JSON.parse(sG("ai_brain","{}")));
 
