@@ -129,7 +129,6 @@ async function syncPending(){
     }catch(e){left.push(op);}
   }
   sS(PENDING_KEY,JSON.stringify(left));
-  if(q.length>left.length)tst("☁️ Offline changes synced");
 }
 
 let mem={};
@@ -193,10 +192,7 @@ function spk(t) {
   speech.lang = "hi-IN";
   speech.rate = 0.95;
   speech.volume = 1;
-  speech.onerror = function (event) {
-    if (event.error === "interrupted" || event.error === "canceled" || event.error === "cancelled") return;
-    tst("आवाज़ नहीं चल पाई।");
-  };
+  speech.onerror = function () { tst("आवाज़ नहीं चल पाई।"); };
   window.setTimeout(() => {
     if (dkmkSpeechUtterance === speech) synth.speak(speech);
   }, 120);
@@ -257,7 +253,6 @@ function usrC(t,im="",save=true){
   chat.appendChild(d);chat.scrollTop=chat.scrollHeight;if(save)appendMsg("user",String(t??""),im);
 }
 function chatImg(e){let f=e.target.files[0];if(!f)return;let r=new FileReader();r.onload=x=>{usrC("📎 "+f.name,x.target.result);botC("Photo received!")};r.readAsDataURL(f)}
-function normalizeText(v){return String(v||"").toLowerCase().normalize("NFKC").replace(/[^\p{L}\p{N}\s]/gu," ").replace(/\s+/g," ").trim()}
 
 async function sendM(){
   const input=document.getElementById("cInp"),question=input.value.trim();
@@ -275,266 +270,29 @@ async function sendM(){
     }
   }
 
-  // 1. Pehle local encyclopedia / brain mein match check karein (Offline Search)
+  // Pehle Master Saved Answers ya Local Brain/Encyclopedia se check karein
   let localAnswer = "";
   const qLower = question.toLowerCase();
-  for(const k of Object.keys(brain)) {
-    if(qLower.includes(k.toLowerCase()) || k.toLowerCase().includes(qLower)) {
-      localAnswer = brain[k];
-      break;
+  
+  // Master Saved Answers se check karein (agar offline save hain)
+  try {
+    const offlineAnswers = cachedMasterAnswers();
+    for(const a of offlineAnswers) {
+      if(a.question.toLowerCase().includes(qLower) || qLower.includes(a.question.toLowerCase())) {
+        localAnswer = a.question + ":\n" + a.answer;
+        break;
+      }
     }
-  }
+  } catch(e){}
+
+  // Agar wahan na mile toh brain se check karein
   if(!localAnswer) {
-    for(const item of knowledge) {
-      if(item.title.toLowerCase().includes(qLower) || item.content.toLowerCase().includes(qLower) || qLower.includes(item.title.toLowerCase())) {
-        localAnswer = item.title + ":\n" + item.content;
+    for(const k of Object.keys(brain)) {
+      if(qLower.includes(k.toLowerCase()) || k.toLowerCase().includes(qLower)) {
+        localAnswer = brain[k];
         break;
       }
     }
   }
 
-  // 2. Agar internet nahi hai, toh local jawab turant dikhayein
-  if(!navigator.onLine) {
-    if(localAnswer) {
-      botC(localAnswer);
-    } else {
-      botC("Aap offline hain aur yeh jankari aapke local database mein nahi mili.");
-    }
-    return;
-  }
-
-  const payload={question,history,profile:{name:cfg.user_name||""},knowledge:knowledge.slice(0,100)};
-  const pending=document.createElement("div");pending.className="card bc";pending.id="aiThinking";pending.textContent="✦ DKMK AI soch raha hai…";document.getElementById("chat").appendChild(pending);document.getElementById("chat").scrollTop=document.getElementById("chat").scrollHeight;
-  
-  try{
-    const response=await fetch(SUPABASE_URL+"/functions/v1/smooth-handler",{
-      method:"POST",
-      headers:{"Content-Type":"application/json","apikey":SUPABASE_KEY,"Authorization":"Bearer "+SUPABASE_KEY},
-      body:JSON.stringify(payload)
-    });
-    let data={};try{data=await response.json()}catch(e){}
-    if(!response.ok)throw new Error(data.error||data.message||("AI service error ("+response.status+")"));
-    const answer=String(data.answer||"").trim();if(!answer)throw new Error("AI ne khaali jawab diya.");
-    pending.remove();botC(answer);
-  }catch(err){
-    pending.remove();
-    // 3. Agar online request fail ho jaye, toh local answer backup ke roop mein dikhayein
-    if(localAnswer) {
-      botC(localAnswer + "\n\n(Note: Internet connection na hone ki wajah se yeh offline database se liya gaya hai.)");
-    } else {
-      botC("AI service abhi connect nahi hai aur local database mein bhi yeh nahi mila. Error: "+String(err.message||err));
-    }
-  }
-}
-
-let brainKeyList=[];
-function openBrainManager(){
-  if(!masterAuthenticated)return tst("Sirf Master memory edit kar sakta hai.");
-  brainKeyList=Object.keys(brain);
-  let html='<h3>🧠 Saved learning (this device)</h3>';
-  if(!brainKeyList.length)html+='<div class="scard">Koi learned answer nahi hai.</div>';
-  brainKeyList.forEach((k,i)=>{html+='<div class="scard"><b>'+escHTML(k)+'</b><p>'+escHTML(String(brain[k]))+'</p><button class="btn br" onclick="deleteBrainKeyAt('+i+')">🗑️ Delete</button></div>';});
-  document.getElementById("mBox").innerHTML=html;
-}
-function deleteBrainKeyAt(i){const k=brainKeyList[i];if(typeof k==="string")deleteBrainKey(k);}
-function escHTML(v){return String(v).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");}
-function deleteBrainKey(k){
-  if(!masterAuthenticated)return tst("Sirf Master delete kar sakta hai.");
-  if(!Object.prototype.hasOwnProperty.call(brain,k))return;
-  if(!confirm('Delete learning "'+k+'"?'))return;
-  delete brain[k];sv();tst("Deleted");openBrainManager();
-}
-
-function openM(){document.getElementById("mMdl").classList.add("open");mTab(4)} function closeM(){document.getElementById("mMdl").classList.remove("open")}
-function mTab(n){let b=document.getElementById("mBox");
-if(n===4){b.innerHTML='<h3>👤 User Profile</h3><div class="scard"><b>Your Name:</b><br><br><input id="uNI" value="'+escHTML(cfg.user_name)+'"><button class="btn bg" onclick="cfg.user_name=document.getElementById(\'uNI\').value;sv();tst(\'Name Saved!\')">💾 Save Name</button></div>'+(masterAuthenticated?'<div class="scard"><button class="btn by" onclick="openBrainManager()">🧠 Manage Saved Learning</button></div>':'') }
-else if(n===2){b.innerHTML='<h3>📍 Maps</h3><div class="scard"><button class="btn bg" style="width:100%" onclick="window.location.href=\'https://www.google.com/maps\'">🗺️ Open Google Maps</button></div>'}}
-function openB(){document.getElementById("bMdl").classList.add("open");rSites()} function closeB(){document.getElementById("bMdl").classList.remove("open")}
-function canEdit(s){return masterAuthenticated}
-async function tglAdm(){
-  if(masterAuthenticated){
-    const client=getCloud();try{if(client)await client.auth.signOut();}catch(e){}
-    masterAuthenticated=false;cfg.is_master=false;sv();hideP();await refreshMasterState();tst("Master logged out");
-  }else{document.getElementById("pBox").style.display="block";}
-}
-function hideP(){document.getElementById("pBox").style.display="none"}
-async function chkP(){
-  const client=getCloud();
-  const email=document.getElementById("masterEmail").value.trim();
-  const password=document.getElementById("masterPassword").value;
-  if(!client)return tst("Login library unavailable.");
-  if(!email||!password)return tst("Email aur password dono likho.");
-  try{
-    const {data,error}=await client.auth.signInWithPassword({email,password});
-    if(error)throw error;
-    if(data?.user?.id!==MASTER_UID){
-      await client.auth.signOut();masterAuthenticated=false;cfg.is_master=false;sv();
-      return tst("Is account ko Master permission nahi hai.");
-    }
-    document.getElementById("masterPassword").value="";
-    hideP();await refreshMasterState();tst("👑 Master login successful");
-  }catch(e){tst("Login failed: email/password check karo.");}
-}
-function rSites(){
-  let q=document.getElementById("wInp").value.toLowerCase().trim(),a=document.getElementById("sArea");a.innerHTML="";
-  sites.forEach((s,i)=>{
-    let txt=(s.site_name+" "+s.title+" "+JSON.stringify(s.parts)).toLowerCase();if(q&&!txt.includes(q))return;
-    let c=document.createElement("div");c.className="scard";
-    let editable=canEdit(s);
-    let mb=editable?'<button class="btn by" onclick="openF('+i+')">✏️ Edit</button> <button class="btn br" onclick="delSite(\''+s.id+'\', '+i+')">🗑️ Delete</button>':'<small style="color:#888">🔒 Master Locked</small>';
-    c.innerHTML='<div style="display:flex;justify-content:space-between;font-size:12px;color:#81C995"><b>'+s.site_name+'</b><span>✍️ '+s.author_name+'</span></div><h3 style="color:#A8C7FA;margin:6px 0" onclick="viewS('+i+',0)">'+s.title+'</h3><div style="display:flex;gap:6px;align-items:center"><button class="btn" onclick="viewS('+i+',0)">📖 Read Info</button> '+mb+'</div>';
-    a.appendChild(c);
-  })
-}
-let topicImageData = "";
-function setTopicImagePreview(data){topicImageData=data||"";const im=document.getElementById("fImgPreview"),st=document.getElementById("fImgStatus"),rm=document.getElementById("fImgRemove");if(topicImageData){im.src=topicImageData;im.style.display="block";st.textContent="✅ Image ready";rm.style.display="block"}else{im.removeAttribute("src");im.style.display="none";st.textContent="Image select karo.";rm.style.display="none"}}
-function previewTopicImage(ev){const file=ev.target.files&&ev.target.files[0];if(!file)return;if(!file.type.startsWith("image/")){tst("Image file select karo.");ev.target.value="";return}const reader=new FileReader();reader.onload=()=>{const img=new Image();img.onload=()=>{const max=1000,scale=Math.min(1,max/Math.max(img.width,img.height)),canvas=document.createElement("canvas");canvas.width=Math.max(1,Math.round(img.width*scale));canvas.height=Math.max(1,Math.round(img.height*scale));canvas.getContext("2d").drawImage(img,0,0,canvas.width,canvas.height);setTopicImagePreview(canvas.toDataURL("image/jpeg",0.82))};img.src=reader.result};reader.readAsDataURL(file)}
-function removeTopicImage(){setTopicImagePreview("");const f=document.getElementById("fImgFile");if(f)f.value=""}
-function closeF(){document.getElementById("fMdl").classList.remove("open")}
-function openF(si){if(!masterAuthenticated)return tst("Sirf Master edit kar sakta hai.");eMod.si=si;let s=si>=0?sites[si]:null;document.getElementById("fSN").value=s?s.site_name:"";document.getElementById("fST").value=s?s.title:"";document.getElementById("fPT").value=s?(s.parts?.[0]?.part_title||"Part 1"):"Part 1";document.getElementById("fPB").value=s?(s.parts?.[0]?.part_content||""):"";document.getElementById("fImgName").value=s?(s.parts?.[0]?.part_image_name||""):"";document.getElementById("fImgTags").value=s?(s.parts?.[0]?.part_image_tags||""):"";const f=document.getElementById("fImgFile");if(f)f.value="";setTopicImagePreview(s?(s.parts?.[0]?.part_image||""):"");document.getElementById("fMdl").classList.add("open")}
-
-async function saveF(){
-  if(!masterAuthenticated)return tst("Sirf Master edit kar sakta hai.");
-  let pt=document.getElementById("fPT").value.trim()||"Part 1",pb=document.getElementById("fPB").value.trim(),imgName=document.getElementById("fImgName").value.trim(),imgTags=document.getElementById("fImgTags").value.trim();if(!pb)return tst("Write content!");
-  let sn=document.getElementById("fSN").value.trim(),st=document.getElementById("fST").value.trim();if(!sn||!st)return tst("Fill Name & Title!");
-  if(eMod.si>=0){
-    let s=sites[eMod.si];
-    s.site_name=sn;s.title=st;s.parts=Array.isArray(s.parts)?s.parts:[];if(!s.parts.length)s.parts.push({part_title:pt,part_content:pb,part_image:topicImageData||""});else{s.parts[0].part_title=pt;s.parts[0].part_content=pb;s.parts[0].part_image=topicImageData||s.parts[0].part_image||"";s.parts[0].part_image_name=imgName;s.parts[0].part_image_tags=imgTags;}
-    cacheSites();
-    const client=getCloud(); if(navigator.onLine && client){let {error}=await client.from('encyclopedia').upsert({ id: s.id, content: s });if(error)queueOp({type:"upsert",item:s});}else queueOp({type:"upsert",item:s});
-  }else{
-    let newId = "s_" + Date.now();
-    let newObj = {
-      id: newId,
-      site_name: sn,
-      title: st,
-      author_id: cfg.is_master ? "MASTER_ADMIN" : cfg.user_id,
-      author_name: cfg.is_master ? "👑 Master Owner" : cfg.user_name,
-      parts: [{part_title: pt, part_content: pb, part_image: topicImageData||"", part_image_name: imgName, part_image_tags: imgTags}]
-    };
-    sites.unshift(newObj);
-    cacheSites();
-    const client=getCloud(); if(navigator.onLine && client){let {error}=await client.from('encyclopedia').upsert({ id: newId, content: newObj });if(error)queueOp({type:"upsert",item:newObj});}else queueOp({type:"upsert",item:newObj});
-  }
-  cacheSites(); closeF();rSites();tst("✅ Saved!");
-}
-
-async function delSite(id, i){
-  if(!masterAuthenticated)return tst("Sirf Master delete kar sakta hai.");
-  const client=getCloud(); let removed=false; if(navigator.onLine&&client){try{let {error}=await client.from('encyclopedia').delete().eq('id',id);removed=!error;}catch(e){}}
-  if(!removed)queueOp({type:"delete",id});
-  sites.splice(i, 1); cacheSites(); rSites();
-  tst("🗑️ Deleted!");
-}
-
-function closeV(){document.getElementById("vMdl").classList.remove("open")}
-function viewS(si,pi){
-  let s=sites[si],p=s.parts[pi]||s.parts[0];
-  document.getElementById("vMdl").classList.add("open");
-  document.getElementById("vTit").innerText=s.title;
-  let imgEl=document.getElementById("vImg");
-  if(p.part_image){imgEl.src=p.part_image;imgEl.style.display="block"}else{imgEl.style.display="none"}
-  let tb=document.getElementById("pBar");tb.innerHTML="";
-  s.parts.forEach((pt,i)=>{let b=document.createElement("button");b.className="btn "+(i===pi?"bg":"");b.innerText=pt.part_title;b.onclick=()=>viewS(si,i);tb.appendChild(b)});
-  document.getElementById("vBdy").innerText=p.part_content;
-}
-
-window.addEventListener("online",()=>{syncPending();loadCloudSites();});
-const MASTER_ANSWERS_CACHE="dkmk_master_saved_answers_cache_v1";
-const MASTER_ANSWERS_OFFLINE_KEY="dkmk_master_saved_answers_offline_ids_v1";
-let masterAnswersData=[];
-let editingMasterAnswerId=null;
-function openMasterAnswers(){document.getElementById("masterAnswersModal").classList.add("open");loadMasterAnswers();}
-function closeMasterAnswers(){document.getElementById("masterAnswersModal").classList.remove("open");cancelMasterAnswer();}
-function cachedMasterAnswers(){try{return JSON.parse(localStorage.getItem(MASTER_ANSWERS_CACHE)||"[]")}catch(e){return []}}
-async function loadMasterAnswers(){
- const status=document.getElementById("masterAnswersStatus");
- masterAnswersData=cachedMasterAnswers();renderMasterAnswers();
- const client=getCloud();
- if(!navigator.onLine||!client){status.textContent="Offline mode: cached answers dikh rahe hain.";await updateMasterAnswerControls();return;}
- status.textContent="Loading answers...";
- try{
-   const {data,error}=await client.from("master_saved_answers").select("id,question,answer,created_by,created_at,updated_at").order("updated_at",{ascending:false});
-   if(error)throw error;
-   masterAnswersData=data||[];
-   localStorage.setItem(MASTER_ANSWERS_CACHE,JSON.stringify(masterAnswersData));
-   renderMasterAnswers();
-   status.textContent=masterAnswersData.length+" answers loaded.";
- }catch(e){status.textContent="Load failed; showing cached answers.";}
- await updateMasterAnswerControls();
-}
-async function updateMasterAnswerControls(){
-  let ok=false;const c=getCloud();
-  try{const {data}=await c.auth.getUser();ok=data?.user?.id===MASTER_UID;}catch(e){}
-  const addBtn=document.getElementById("masterAddAnswerBtn");
-  if(addBtn) addBtn.style.display=ok?"inline-block":"none";
-  document.querySelectorAll(".master-answer-actions").forEach(el=>{el.style.display=ok?"block":"none";});
-}
-function renderMasterAnswers(){
- const list=document.getElementById("masterAnswersList");
- if(!list) return;
- if(!masterAnswersData.length){list.innerHTML='<div class="scard">Koi shared answer nahi hai.</div>';return;}
- list.innerHTML=masterAnswersData.map(a=>{
-   const idStr=String(a.id);
-   const savedOffline=offlineAnswerIds().includes(idStr);
-   return '<div class="scard" data-answer-card="'+escHTML(idStr)+'"><b>'+escHTML(a.question)+'</b><p style="white-space:pre-wrap">'+escHTML(a.answer)+'</p><button type="button" class="btn '+(savedOffline?'bg':'')+'" onclick="downloadMasterAnswer(\''+escHTML(idStr)+'\')">'+(savedOffline?'✅ Saved Offline':'⬇️ Save for Offline')+'</button><p class="offline-answer-status" style="font-size:12px;color:'+(savedOffline?'#81C995':'#aaa')+';margin:6px 0">'+(savedOffline?'यह जवाब इस ब्राउज़र में ऑफलाइन पढ़ने के लिए सेव है।':'अभी इस जवाब को ऑफलाइन सेव नहीं किया गया है।')+'</p><div class="master-answer-actions" style="display:none;margin-top:8px"><button class="btn by" onclick="editMasterAnswer(\''+escHTML(idStr)+'\')">✏️ Edit</button> <button class="btn br" onclick="deleteMasterAnswer(\''+escHTML(idStr)+'\')">🗑️ Delete</button></div></div>';
- }).join("");
- updateMasterAnswerControls();
-}
-function newMasterAnswer(){if(!masterAuthenticated)return tst("Sirf Master add kar sakta hai.");editingMasterAnswerId=null;document.getElementById("masterAnswerQuestion").value="";document.getElementById("masterAnswerText").value="";document.getElementById("masterAnswerEditor").style.display="block";}
-function editMasterAnswer(id){if(!masterAuthenticated)return tst("Sirf Master edit kar sakta hai.");const a=masterAnswersData.find(x=>String(x.id)===String(id));if(!a)return;editingMasterAnswerId=id;document.getElementById("masterAnswerQuestion").value=a.question;document.getElementById("masterAnswerText").value=a.answer;document.getElementById("masterAnswerEditor").style.display="block";}
-function cancelMasterAnswer(){editingMasterAnswerId=null;const e=document.getElementById("masterAnswerEditor");if(e)e.style.display="none";}
-async function saveMasterAnswer(){
-  const q=document.getElementById("masterAnswerQuestion").value.trim(),a=document.getElementById("masterAnswerText").value.trim(),status=document.getElementById("masterAnswersStatus");
-  if(!q||!a)return status.textContent="Question aur Answer dono bharo.";
-  if(!navigator.onLine)return status.textContent="Offline mein save nahi ho sakta.";
-  const c=getCloud();if(!c)return status.textContent="Supabase client error.";
-  const {data:{user},error:ue}=await c.auth.getUser();
-  if(ue||user?.id!==MASTER_UID)return status.textContent="Master login zaroori hai.";
-  const payload={question:q,answer:a,updated_at:new Date().toISOString()};
-  if(editingMasterAnswerId)payload.id=editingMasterAnswerId;else payload.created_by=user.id;
-  status.textContent="Saving...";
-  const {error}=await c.from("master_saved_answers").upsert(payload);
-  if(error)return status.textContent="Save error: "+error.message;
-  cancelMasterAnswer();await loadMasterAnswers();status.textContent="Saved successfully.";
-}
-async function deleteMasterAnswer(id){
-  if(!masterAuthenticated)return tst("Sirf Master delete kar sakta hai.");
-  if(!navigator.onLine)return tst("Internet chahiye.");
-  if(!confirm("Yeh answer delete karein?"))return;
-  const c=getCloud();
-  const {error}=await c.from("master_saved_answers").delete().eq("id",id);
-  if(error)return tst("Delete error: "+error.message);
-  await loadMasterAnswers();
-}
-function offlineAnswerIds(){try{return JSON.parse(localStorage.getItem(MASTER_ANSWERS_OFFLINE_KEY)||"[]").map(String)}catch(e){return []}}
-function downloadMasterAnswer(id){
- const status=document.getElementById("masterAnswersStatus");
- const card=[...document.querySelectorAll("[data-answer-card]")].find(el=>el.dataset.answerCard===String(id));
- const button=card?.querySelector("button");
- const note=card?.querySelector(".offline-answer-status");
- try{
-   const a=masterAnswersData.find(x=>String(x.id)===String(id));
-   if(!a){if(status)status.textContent="❌ जवाब सूची में नहीं मिला।";return;}
-   if(button){button.disabled=true;button.textContent="⏳ सेव हो रहा है...";}
-   const arr=cachedMasterAnswers();
-   const i=arr.findIndex(x=>String(x.id)===String(a.id));
-   if(i>=0)arr[i]=a;else arr.push(a);
-   localStorage.setItem(MASTER_ANSWERS_CACHE,JSON.stringify(arr));
-   const ids=offlineAnswerIds();
-   if(!ids.includes(String(a.id)))ids.push(String(a.id));
-   localStorage.setItem(MASTER_ANSWERS_OFFLINE_KEY,JSON.stringify(ids));
-   
-   renderMasterAnswers();
-   tst("✅ Offline save सफल");
- }catch(e){
-   if(button){button.disabled=false;button.textContent="⬇️ Save for Offline";}
-   if(status)status.textContent="❌ Save error";
- }
-}
-window.addEventListener("online",()=>{if(document.getElementById("masterAnswersModal")?.classList.contains("open"))loadMasterAnswers();});
-
-window.onload=async()=>{ cfg.is_master=false;masterAuthenticated=false;if(threads.length===0)newChat();else loadCurrChat();await refreshMasterState();loadCloudSites();const client=getCloud();if(client)client.auth.onAuthStateChange(()=>{setTimeout(refreshMasterState,0);}); }; 
-</script>
-</body>
-</html>
+  // Agar fir
